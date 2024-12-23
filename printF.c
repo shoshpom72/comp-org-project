@@ -32,15 +32,65 @@ int printF(const char *format, ...){
             // move on to the next char
             format++;
 
+
             // go through the format string to break it up
             formatting(&format, flags, &width, &precision, &length, &specifier);
 
             // check the specifier
             if (specifier == 'd') {
                 forInt(va_arg(args, int), width, precision, flags, length, &count);
+            }
+        }
+
+        // account for escape sequences ('\' situations)
+        else if (*format == '\\'){
+            // move on to the next char
+            format++;
+
+            // check different cases for that char
+            switch(*format){
+                // newline char
+                case 'n':
+                    putchar('\n');
+                    count++;
+                    break;
+                // tab
+                case 't':
+                    putchar('\t');
+                    count++;
+                    break;
+                // backslash
+                case '\\':
+                    putchar('\\');
+                    count++;
+                    break;
+                // double quote
+                case '"':
+                    putchar('"');
+                    count++;
+                    break;
+                // carriage return
+                case 'r':
+                    putchar('\r');
+                    count++;
+                    break;
+                // backspace
+                case 'b':
+                    putchar('\b');
+                    count++;
+                    break;
+                // form feed
+                case 'f':
+                    putchar('\f');
+                    count++;
+                    break;
+                default:
+                    // print nothing for unknown escape sequence
+                    break;
 
 
             }
+
         }
 
         else{
@@ -48,8 +98,11 @@ int printF(const char *format, ...){
             putchar(*format);
             //increment the character counter
             count++;
+            // move to the next char
+            format++;
         }
-        format++;
+
+
 
     }
 
@@ -121,12 +174,18 @@ void formatting(const char **format, char flags[5],  int *width, int *precision,
 
     // while *p is hh, h, l , or ll
     while (*p == 'h' || *p == 'l') {
-        *length = *p++;
+        // set length to the length modifier
+        *length = *p;
+        //increment p to the next char
+        p++;
     }
 
     // if *p is a d, x, c, or s
     if (*p == 'd' || *p == 'x' || *p == 'c' || *p == 's') {
-        *specifier = *p++;
+        // set the specifier to be the specifier char
+        *specifier = *p;
+        // increment p to the next char
+        p++;
     }
 
     // update the format pointer
@@ -134,57 +193,170 @@ void formatting(const char **format, char flags[5],  int *width, int *precision,
 
     }
 
-void forInt(int num, int width, int precision, char flags[5], char length, int *count){
-    // if the inputted int is negative
-    if (num < 0){
-        // print out a negative sign
-        putchar('-');
-        // increment the char count
-        *count += 1;
-        // make the number positive so you get rid of the '-' that you already printed
+void forInt(int num, int width, int precision, char flags[5], char length, int *count) {
+    // determine if the num is negative
+    int isNeg = 0;
+    // keep track of how much padding needed
+    int padding = 0;
+    // if precision > length of the num, 0s need to be filled in
+    int precisionZeros = 0;
+
+    // if num is negative
+    if (num < 0) {
+        // set isNeg to 1
+        isNeg = 1;
+        // make num pos
         num = -num;
-//
-  }
-    // if num = 0
-    else if (num == 0){
-        // print out a 0
-        putchar('0');
-        // increment the char count
-        *count += 1;
-        // there's nothing more to print so return
-        return;
     }
-    // place to store the digits
+    // place to store the numbers before they can be printed
     char numString[50];
+    // index value
     int i = 0;
+    // store the length of num so if there's a width that's greater than the len
+    // the padding could know how much space it needs
+    int lenNum = 0;
 
 
-    // while num > 0
-    while (num > 0) {
-        // fill in numString index i with the last digit of num and change it to a char
-        numString[i] = (num % 10) + '0';
-        // increment i to the next index
-        i++;
-        // take the last digit off of num
-        num /= 10;
+    // if num is 0
+    if (num == 0) {
+        // put a 0 in numString
+        numString[i++] = '0';
     }
-    // subract 1 from i because it gets incremented one extra time
-    i--;
-    // while there are still numbers in numString to be printed
-    while(i >= 0){
-        // print the numbers from the end of numString until the beginning because the order's reversed
-        putchar(numString[i]);
+    else {
+        // while num still has values to be printed
+        while (num > 0) {
+            // fill in numString index i with the last digit of num and change it to a char
+            // increment i to the next index
+            numString[i++] = (num % 10) + '0';
+            // take the last digit off of num
+            num /= 10;
+        }
+
+        // the len of num is the index + 1 because the index starts at 0
+        lenNum = i;
+    }
+    // figure out how much padding you need
+
+    // if the precision is greater than the len of num, then it needs to be filled in with 0s
+    if (precision > lenNum) {
+        // set the number of leading 0s to be the difference of precision and lenNum
+        precisionZeros = precision - lenNum;
+    }
+    int totWidth = lenNum + precisionZeros;
+
+
+    // if the num needs a +/- sign
+    if (isNeg || flags[1] == '+'){
+        // add to the total width to account for signs (+/-)
+        totWidth++;
+    }
+    // if the width is greater than the total width
+    if (width > totWidth) {
+        // account for that padding
+        padding = width - totWidth;
+    }
+    // if padding is necessary and it's not left-aligned
+    if (padding > 0 && flags[0] != '-') {
+        // the zero gets overwritten by the ' ' and "+" flags
+        // so make sure those flags aren't present
+        if (flags[2] == ' '){
+            // print spaces
+            putchar(' ');
+            // increment the char counter
+            *count += 1;
+            // decrement padding
+            padding--;
+        }
+        if (flags[3] == '0' && flags[1] != '+') {
+            // while there's padding
+            while (padding--) {
+                // print spaces
+                putchar('0');
+                // increment the char counter
+                *count += 1;
+            }
+
+        }
+
+            // if there's space padding, and it's not left-aligned, handle it before the signs
+        else {
+            // while there's space padding
+            while (padding--) {
+                // print spaces
+                putchar(' ');
+                // increment the char counter
+                *count += 1;
+            }
+        }
+    }
+
+    // if there's a + flag and it's positive
+    if (flags[1] == '+' && !isNeg) {
+        // print a +
+        putchar('+');
+        // increment the char counter
         *count += 1;
-        i--;
     }
+
+    // if num is negative
+    else if (isNeg) {
+        // print a - before the 0s
+        putchar('-');
+        // increment the char counter
+        *count += 1;
+
+    }
+
+
+    // while there are more leading 0s
+    while (precisionZeros--){
+        // print a 0
+        putchar('0');
+        // increment the char counter
+        *count += 1;
+    }
+
+
+
+    // while there are numbers to print
+    while (i--){
+        // print the value at the end of the string because it was appended in reverse order
+        putchar(numString[i]);
+        // increment the counter
+        *count += 1;
+    }
+
+    // if output is left aligned
+    if (flags[0] == '-'){
+        while (padding--){
+            // print spaces
+            putchar(' ');
+            // increment counter
+            *count += 1;
+        }
+    }
+
+
+
+
 
 }
 
-
-
 int main() {
-    char s[] = "wow";
-    printf("%-d\n", 322/10);
-    printF("this %d %d", 5, 3);
+    printf("%+09.6d\n", 123); // with width 9 and precision 6
+    printF("%+09.6d\n", 123);  // custom printF implementation
+
+    printf("% 09d\n", 123);     // with width 9
+    printF("% 09d\n", 123);     // custom printF implementation
+
+    printf("%-9d\n", 123);     // left-aligned with width 9
+    printF("%-9d\n", 123);     // custom printF implementation
+
+    printf("%09d\n", 123);     // with zero-padding width 9
+    printF("%09d\n", 123);     // custom printF implementation
+
+    printf("%9.4d\n", 123);    // with width 9 and precision 4
+    printF("%9.4d\n", 123);    // custom printF implementation
+
     return 0;
 }
